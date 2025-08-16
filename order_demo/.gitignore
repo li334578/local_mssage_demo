@@ -31,3 +31,11 @@ build/
 
 ### VS Code ###
 .vscode/
+
+
+# .gitignore
+**/application-local.yml
+**/application-dev.yml
+**/private/
+*.key
+*.pem
