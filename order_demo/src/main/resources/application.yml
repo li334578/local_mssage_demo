@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: order_demo
+  profiles:
+    active: local

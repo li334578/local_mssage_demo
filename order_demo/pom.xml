@@ -55,6 +55,31 @@
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
             <version>3.5.12</version>
         </dependency>
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+            <version>5.8.22</version> <!-- 或最新版本 -->
+        </dependency>
+        <!-- RocketMQ Client Java（新客户端，适用于 5.x） -->
+        <dependency>
+            <groupId>org.apache.rocketmq</groupId>
+            <artifactId>rocketmq-client-java</artifactId>
+            <version>5.0.8</version>
+        </dependency>
+
+        <!-- Spring Boot 集成支持（可选） -->
+        <dependency>
+            <groupId>org.apache.rocketmq</groupId>
+            <artifactId>rocketmq-spring-boot-starter</artifactId>
+            <version>2.3.3</version>
+        </dependency>
+
+        <!-- gRPC 核心依赖（新客户端需要） -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
+            <version>1.58.0</version>
+        </dependency>
     </dependencies>
 
     <build>
