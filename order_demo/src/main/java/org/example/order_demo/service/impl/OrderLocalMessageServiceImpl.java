@@ -1,5 +1,6 @@
 package org.example.order_demo.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
 import org.example.order_demo.entity.OrderLocalMessage;
@@ -26,6 +27,15 @@ public class OrderLocalMessageServiceImpl
         OrderLocalMessage message = OrderLocalMessage.builder().bizId(bizId).messageId(messageId)
                 .payload( payload).traceId(traceId).status(0).count(0).createTime(LocalDateTime.now())
                 .updateTime(LocalDateTime.now()).build();
+        return save(message);
+    }
+
+    @Override
+    public boolean createMessage(Long bizId, Long messageId, String payload, Long traceId, Integer status, LocalDateTime nextRetryTime) {
+        OrderLocalMessage message = OrderLocalMessage.builder().bizId(bizId).messageId(messageId)
+                .payload( payload).traceId(traceId).status(status).count(0).createTime(LocalDateTime.now())
+                .updateTime(LocalDateTime.now())
+                .nextRetryTime(nextRetryTime).build();
         return save(message);
     }
 
@@ -80,9 +90,27 @@ public class OrderLocalMessageServiceImpl
     }
 
     @Override
+    public List<OrderLocalMessage> listByStatusAndRetryTime(List<Integer> statusList, LocalDateTime now) {
+        return lambdaQuery()
+                .in(OrderLocalMessage::getStatus, statusList) // 发送失败
+                .le(OrderLocalMessage::getNextRetryTime, now)
+                .list();
+    }
+
+    @Override
     public OrderLocalMessage getByBizId(Long bizId) {
         return lambdaQuery()
             .eq(OrderLocalMessage::getBizId, bizId)
             .one();
+    }
+
+    @Override
+    public void markAsDeadLetter(Long messageId) {
+        LambdaUpdateWrapper<OrderLocalMessage> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(OrderLocalMessage::getMessageId, messageId)
+                .in(OrderLocalMessage::getStatus, 0, 2) // 只更新 PENDING/FAILED
+                .set(OrderLocalMessage::getStatus, 5)   // DEAD_LETTER
+                .set(OrderLocalMessage::getUpdateTime, LocalDateTime.now());
+        update(wrapper);
     }
 }

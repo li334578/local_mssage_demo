@@ -1,0 +1,27 @@
+<mapper namespace="org.example.stock_demo.mapper.ProductStockMapper">
+
+    <resultMap id="ProductStockMap" type="org.example.stock_demo.entity.ProductStock">
+        <id property="id" column="id"/>
+        <result property="productId" column="product_id"/>
+        <result property="productName" column="product_name"/>
+        <result property="totalStock" column="total_stock"/>
+        <result property="availableStock" column="available_stock"/>
+        <result property="lockStock" column="lock_stock"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <select id="selectByProductId" resultMap="ProductStockMap">
+        SELECT * FROM product_stock WHERE product_id = #{productId}
+    </select>
+
+    <update id="deductStock">
+        UPDATE product_stock
+        SET available_stock = available_stock - #{count},
+        update_time = NOW()
+        WHERE product_id = #{productId}
+        AND available_stock = #{expectedAvailable}
+        AND available_stock >= #{count}
+    </update>
+
+</mapper>

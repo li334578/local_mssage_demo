@@ -1,65 +1,74 @@
-package com.example.demo.mq;
+package org.example.order_demo.producer;
 
-import org.apache.rocketmq.client.apis.ClientConfiguration;
-import org.apache.rocketmq.client.apis.ClientException;
-import org.apache.rocketmq.client.apis.ClientServiceProvider;
-import org.apache.rocketmq.client.apis.message.Message;
-import org.apache.rocketmq.client.apis.message.MessageBuilder;
-import org.apache.rocketmq.client.apis.producer.Producer;
-import org.apache.rocketmq.client.apis.producer.SendReceipt;
+import org.apache.rocketmq.client.producer.DefaultMQProducer;
+import org.apache.rocketmq.client.producer.SendResult;
+import org.apache.rocketmq.common.message.Message;
+import org.apache.rocketmq.remoting.common.RemotingHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 
 @Component
 public class MessageProducer {
 
-    @Value("${rocketmq.name-server}")
-    private String nameServer; // Proxy 地址，如 127.0.0.1:8081
+    private static final Logger log = LoggerFactory.getLogger(MessageProducer.class);
 
-    private Producer producer;
+    @Value("${rocketmq.name-server}")
+    private String nameServer;  // 通常是 9876 端口，如 127.0.0.1:9876
+
+    @Value("${rocketmq.producer.group:order-producer-group}")
+    private String producerGroup;
+
+    private DefaultMQProducer producer;
 
     @PostConstruct
-    public void init() throws ClientException {
-        // 1. 创建客户端配置
-        ClientConfiguration config = ClientConfiguration.newBuilder()
-                .setEndpoints(nameServer)
-                .build();
+    public void init() {
+        try {
+            log.info("正在启动 RocketMQ 生产者，NameServer: {}, Group: {}", nameServer, producerGroup);
 
-        // 2. 获取服务提供者（关键：不是 ClientFactory）
-        producer = ClientServiceProvider
-                .getClientProvider()
-                .newProducerBuilder()
-                .setClientConfiguration(config)
-                .setProducerGroup("order-producer-group")
-                .build();
+            producer = new DefaultMQProducer(producerGroup);
+            producer.setNamesrvAddr(nameServer);
+            producer.start();
+            log.info("RocketMQ 生产者启动成功");
+        } catch (Exception e) {
+            log.error("RocketMQ 生产者启动失败", e);
+            throw new RuntimeException("Failed to start RocketMQ producer", e);
+        }
     }
 
     /**
      * 发送消息
      */
     public boolean sendMessage(String topic, String body, Long messageId) {
+        return sendMessage(topic, body, messageId, null);
+    }
+
+    /**
+     * 发送消息（支持 Tag）
+     */
+    public boolean sendMessage(String topic, String body, Long messageId, String tag) {
+        if (producer == null) {
+            log.warn("生产者未启动，无法发送消息");
+            return false;
+        }
+
         try {
-            // ✅ 正确方式：MessageBuilder.getInstance()
-            MessageBuilder messageBuilder = MessageBuilder.getInstance();
-            messageBuilder.setTopic(topic);
-            messageBuilder.setBody(body.getBytes(StandardCharsets.UTF_8));
+            Message msg = new Message(
+                    topic,
+                    tag != null ? tag : "",
+                    messageId != null ? String.valueOf(messageId) : null,
+                    body.getBytes(RemotingHelper.DEFAULT_CHARSET)
+            );
 
-            if (messageId != null) {
-                messageBuilder.setKeys(String.valueOf(messageId));
-            }
-
-            Message message = messageBuilder.build();
-
-            // 发送
-            SendReceipt sendReceipt = producer.send(message);
-            return sendReceipt != null;
-        } catch (ClientException e) {
-            System.err.println("发送消息失败: " + e.getMessage());
+            SendResult sendResult = producer.send(msg);
+            log.debug("消息发送成功: {}, Topic: {}, MsgId: {}", sendResult.getSendStatus(), topic, sendResult.getMsgId());
+            return true;
+        } catch (Exception e) {
+            log.error("发送消息失败，Topic: {}", topic, e);
             return false;
         }
     }
@@ -68,9 +77,10 @@ public class MessageProducer {
     public void shutdown() {
         if (producer != null) {
             try {
-                producer.close();
-            } catch (ClientException e) {
-                System.err.println("关闭生产者失败: " + e.getMessage());
+                producer.shutdown();
+                log.info("RocketMQ 生产者已关闭");
+            } catch (Exception e) {
+                log.error("关闭生产者失败", e);
             }
         }
     }

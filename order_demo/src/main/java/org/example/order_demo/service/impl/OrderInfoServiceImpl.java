@@ -5,8 +5,10 @@ import jakarta.annotation.Resource;
 import org.example.order_demo.entity.OrderInfo;
 import org.example.order_demo.entity.OrderLocalMessage;
 import org.example.order_demo.mapper.OrderInfoMapper;
+import org.example.order_demo.producer.MessageProducer;
 import org.example.order_demo.service.OrderInfoService;
 import org.example.order_demo.service.OrderLocalMessageService;
+import org.example.order_demo.utils.IdGenerator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,9 +23,9 @@ import java.util.List;
 public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo> implements OrderInfoService {
 
     @Resource
-    private final OrderLocalMessageService messageService;
+    private OrderLocalMessageService messageService;
     @Resource
-    private final MessageProducer messageProducer; // MQ 发送组件
+    private MessageProducer messageProducer; // MQ 发送组件
 
     @Override
     public OrderInfo getByOrderNumber(String orderNumber) {
@@ -77,18 +79,8 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
         // 2. 生成本地消息
         Long messageId = IdGenerator.nextId();
         String payload = buildDeductStockMessage(order);
-
-        messageService.createMessage(order.getId(), messageId, payload, order.getTraceId());
-
-        // 3. 第一次尝试发送MQ
-        boolean sent = messageProducer.sendMessage("stock.deduct.queue", payload, messageId);
-        if (sent) {
-            messageService.markAsSent(messageId);
-        } else {
-            LocalDateTime nextRetry = LocalDateTime.now().plusSeconds(30);
-            messageService.markAsFailedAndRetry(messageId, nextRetry);
-        }
-
+        // 后续由定时任务统一处理
+        messageService.createMessage(order.getId(), messageId, payload, order.getTraceId(), 0, LocalDateTime.now());
         return order.getId();
     }
 
@@ -175,7 +167,7 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
         baseMapper.updateById(order);
 
         // 发送释放库存消息
-        messageProducer.sendMessage("stock.release.queue", buildReleaseStockMessage(order));
+        messageProducer.sendMessage("stock.release.queue", buildReleaseStockMessage(order),null);
     }
 
     @Override

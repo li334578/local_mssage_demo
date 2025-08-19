@@ -24,7 +24,8 @@ public class OrderLocalMessage implements Serializable {
      * 2 投递MQ失败
      * 3 库存服务回调订单服务
      * 4 因为库存问题不允许出库 需要取消订单
-     * 消息状态 0 待发送 1 已发送 2 发送失败 3 已确认 4 出库失败 取消订单
+     * 5 消息发送失败（已达最大重试次数）
+     * 消息状态 0 待发送 1 已发送 2 发送失败 3 已确认 4 出库失败 取消订单 5 消息发送失败（已达最大重试次数）
      */
     private Integer status;
 

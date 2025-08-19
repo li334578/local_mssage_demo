@@ -20,6 +20,17 @@ public interface OrderLocalMessageService extends IService<OrderLocalMessage> {
      * @return 是否创建成功
      */
     boolean createMessage(Long bizId, Long messageId, String payload, Long traceId);
+    /**
+     * 创建本地消息（待投递）
+     * @param bizId 业务ID（如订单ID）
+     * @param messageId 消息唯一ID
+     * @param payload 消息内容（JSON字符串）
+     * @param traceId 链路ID
+     * @param status 状态
+     * @param nextRetryTime 下次重试时间
+     * @return 是否创建成功
+     */
+    boolean createMessage(Long bizId, Long messageId, String payload, Long traceId, Integer status,LocalDateTime nextRetryTime);
 
     /**
      * 标记消息为“已发送”
@@ -64,10 +75,14 @@ public interface OrderLocalMessageService extends IService<OrderLocalMessage> {
      */
     List<OrderLocalMessage> listRetryMessages(LocalDateTime now);
 
+    List<OrderLocalMessage> listByStatusAndRetryTime(List<Integer> statusList, LocalDateTime now);
+
     /**
      * 根据业务ID（如订单ID）查询消息
      * @param bizId 业务ID
      * @return 消息对象
      */
     OrderLocalMessage getByBizId(Long bizId);
+
+    void markAsDeadLetter(Long messageId);
 }
